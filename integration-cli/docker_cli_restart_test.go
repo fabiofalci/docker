@@ -43,7 +43,7 @@ func TestDockerRestartStoppedContainer(t *testing.T) {
 }
 
 func TestDockerRestartRunningContainer(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "watch", "-t", "echo", "foobar")
 	out, _, err := runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
 
@@ -53,8 +53,14 @@ func TestDockerRestartRunningContainer(t *testing.T) {
 	out, _, err = runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
 
-	if out != "foobar\n" {
-		t.Errorf("container should've printed 'foobar'")
+	m := []byte(out)
+	out = string(m[6:])
+
+	// out = strings.Trim(out, "\x1b[H \x1b[J \n\r\t")
+	out = strings.Trim(out, " \n\r\t")
+	if out != "foobar" {
+		t.Errorf("container should've printed 'foobar' '%+q'", out)
+		t.Errorf("container should've printed 'foobar' 2 '%v'", out)
 	}
 
 	runCmd = exec.Command(dockerBinary, "restart", "-t", "1", cleanedContainerID)
@@ -65,8 +71,13 @@ func TestDockerRestartRunningContainer(t *testing.T) {
 	out, _, err = runCommandWithOutput(runCmd)
 	errorOut(err, t, out)
 
-	if out != "foobar\nfoobar\n" {
-		t.Errorf("container should've printed 'foobar' twice")
+	m = []byte(out)
+	out = string(m[6:])
+
+	out = strings.Trim(out, "\x1b[H \x1b[J \n\r\t")
+	// out = strings.Trim(out, " \n\r\t")
+	if out != "foobarfoobar" {
+		t.Errorf("container should've printed 'foobar' twice '%+q' '%v", out, out)
 	}
 
 	deleteAllContainers()
